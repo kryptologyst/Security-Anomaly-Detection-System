@@ -1,0 +1,247 @@
+# Default configuration for Security Anomaly Detection System
+
+# Data generation settings
+data:
+  n_samples: 1000
+  anomaly_ratio: 0.1
+  random_state: 42
+  
+  # System metrics configuration
+  system_metrics:
+    cpu_mean: 25.0
+    cpu_std: 15.0
+    memory_mean: 45.0
+    memory_std: 20.0
+    disk_mean: 30.0
+    disk_std: 10.0
+    
+  # Network metrics configuration
+  network_metrics:
+    bytes_sent_mean: 1000.0
+    bytes_sent_std: 500.0
+    bytes_received_mean: 2000.0
+    bytes_received_std: 1000.0
+    connections_mean: 5.0
+    connections_std: 3.0
+    
+  # Process metrics configuration
+  process_metrics:
+    processes_mean: 60.0
+    processes_std: 15.0
+    
+  # Time patterns
+  time_window_hours: 24
+
+# Model configuration
+model:
+  method: "isolation_forest"  # Options: isolation_forest, autoencoder, lstm, ensemble
+  random_state: 42
+  
+  # Isolation Forest settings
+  isolation_forest:
+    contamination: 0.1
+    n_estimators: 100
+    max_samples: "auto"
+    max_features: 1.0
+    
+  # Autoencoder settings
+  autoencoder:
+    hidden_dims: [64, 32, 16]
+    contamination: 0.1
+    epochs: 100
+    batch_size: 32
+    learning_rate: 0.001
+    
+  # LSTM settings
+  lstm:
+    sequence_length: 10
+    hidden_dim: 64
+    num_layers: 2
+    contamination: 0.1
+    epochs: 100
+    batch_size: 32
+    learning_rate: 0.001
+    
+  # Ensemble settings
+  ensemble:
+    voting_method: "soft"
+    detectors:
+      - method: "isolation_forest"
+        contamination: 0.1
+      - method: "autoencoder"
+        hidden_dims: [32, 16]
+        epochs: 50
+
+# Evaluation settings
+evaluation:
+  # Security metrics configuration
+  security_metrics:
+    target_tpr: 0.95
+    target_fpr: 0.01
+    precision_k_values: [10, 50, 100, 500]
+    max_alerts_per_day: 100
+    investigation_time_minutes: 30
+    
+  # Cross-validation settings
+  cv_folds: 5
+  test_size: 0.2
+  stratify: true
+  
+  # Threshold analysis
+  threshold_analysis:
+    n_thresholds: 100
+    save_plots: true
+
+# Visualization settings
+visualization:
+  style: "seaborn-v0_8"
+  figsize: [12, 8]
+  dpi: 300
+  save_plots: true
+  
+  # Color scheme
+  colors:
+    normal: "#2E8B57"
+    anomaly: "#DC143C"
+    predicted_normal: "#87CEEB"
+    predicted_anomaly: "#FF6347"
+    true_positive: "#32CD32"
+    false_positive: "#FFD700"
+    false_negative: "#FF4500"
+    true_negative: "#4169E1"
+    
+  # Plot settings
+  plots:
+    cpu_memory_scatter: true
+    feature_distributions: true
+    time_series: true
+    confusion_matrix: true
+    feature_importance: true
+    score_distribution: true
+    dimensionality_reduction: true
+
+# Explainability settings
+explainability:
+  shap:
+    sample_size: 100
+    max_features: 10
+    
+  # Explanation methods
+  methods:
+    - "shap"
+    - "z_score"
+    
+  # Report settings
+  report:
+    save_explanations: true
+    plot_explanations: true
+    max_anomalies_to_explain: 10
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  
+  # File logging
+  file_logging:
+    enabled: true
+    filename: "logs/anomaly_detection.log"
+    max_size_mb: 10
+    backup_count: 5
+
+# Paths configuration
+paths:
+  data_dir: "data"
+  models_dir: "models"
+  results_dir: "results"
+  plots_dir: "assets/plots"
+  logs_dir: "logs"
+  
+  # File naming patterns
+  data_file: "security_logs_{timestamp}.parquet"
+  model_file: "anomaly_detector_{method}_{timestamp}.pkl"
+  results_file: "evaluation_results_{timestamp}.json"
+  plots_file: "anomaly_plots_{timestamp}.png"
+
+# Security and privacy settings
+security:
+  # Data privacy
+  privacy:
+    hash_user_ids: true
+    hash_ip_addresses: true
+    anonymize_timestamps: false
+    remove_pii: true
+    
+  # Model security
+  model_security:
+    save_model_weights: true
+    encrypt_model_files: false
+    validate_inputs: true
+    
+  # Output security
+  output_security:
+    redact_sensitive_data: true
+    sanitize_logs: true
+    audit_trail: true
+
+# Demo settings
+demo:
+  # Streamlit configuration
+  streamlit:
+    page_title: "Security Anomaly Detection"
+    page_icon: "🔒"
+    layout: "wide"
+    initial_sidebar_state: "expanded"
+    
+  # Demo data
+  demo_data:
+    n_samples: 500
+    anomaly_ratio: 0.15
+    real_time_simulation: true
+    
+  # Interactive features
+  interactive:
+    threshold_slider: true
+    feature_selector: true
+    explanation_viewer: true
+    real_time_updates: true
+
+# Performance settings
+performance:
+  # Device configuration
+  device: "auto"  # Options: auto, cpu, cuda, mps
+  
+  # Memory management
+  memory:
+    max_memory_gb: 8
+    batch_size_auto: true
+    
+  # Parallel processing
+  parallel:
+    n_jobs: -1
+    backend: "threading"
+    
+  # Caching
+  cache:
+    enabled: true
+    cache_dir: ".cache"
+    max_size_mb: 100
+
+# Development settings
+development:
+  debug: false
+  verbose: false
+  profile: false
+  
+  # Testing
+  testing:
+    run_tests: false
+    test_data_size: 100
+    mock_external_calls: true
+    
+  # Code quality
+  code_quality:
+    type_checking: true
+    linting: true
+    formatting: true

@@ -1,0 +1,261 @@
+name: Security Anomaly Detection CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  lint-and-format:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black ruff pytest pytest-cov
+        
+    - name: Run Black formatter check
+      run: black --check src/ tests/ demo/
+      
+    - name: Run Ruff linter
+      run: ruff check src/ tests/ demo/
+      
+    - name: Check type hints
+      run: |
+        pip install mypy
+        mypy src/ --ignore-missing-imports
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ --cov=src --cov-report=xml --cov-report=html
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+        
+    - name: Run safety check
+      run: safety check
+      
+    - name: Run bandit security scan
+      run: bandit -r src/ -f json -o bandit-report.json
+      
+    - name: Upload bandit results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: bandit-report
+        path: bandit-report.json
+
+  demo-test:
+    name: Demo Application Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Test demo imports
+      run: |
+        python -c "import sys; sys.path.append('src'); from demo.streamlit_demo import SecurityAnomalyDemo; print('Demo imports successfully')"
+        
+    - name: Test basic functionality
+      run: |
+        python -c "
+        import sys
+        sys.path.append('src')
+        from src.data.generator import SecurityLogGenerator
+        from src.models.anomaly_detector import AnomalyDetector
+        from src.evaluation.metrics import SecurityMetrics
+        
+        # Test basic pipeline
+        generator = SecurityLogGenerator(random_state=42)
+        data = generator.generate_logs(n_samples=100, anomaly_ratio=0.1)
+        
+        detector = AnomalyDetector(method='isolation_forest', random_state=42)
+        predictions = detector.fit_predict(data)
+        
+        metrics = SecurityMetrics()
+        results = metrics.compute_all(data['labels'], predictions)
+        
+        print('Basic pipeline test passed')
+        print(f'Accuracy: {results[\"accuracy\"]:.3f}')
+        "
+
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install sphinx sphinx-rtd-theme
+        
+    - name: Build documentation
+      run: |
+        # Create basic documentation structure
+        mkdir -p docs
+        echo "# Security Anomaly Detection Documentation" > docs/README.md
+        echo "This is a placeholder for documentation." >> docs/README.md
+        
+    - name: Upload documentation
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation
+        path: docs/
+
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run performance test
+      run: |
+        python -c "
+        import time
+        import sys
+        sys.path.append('src')
+        from src.data.generator import SecurityLogGenerator
+        from src.models.anomaly_detector import AnomalyDetector
+        
+        # Test data generation performance
+        start_time = time.time()
+        generator = SecurityLogGenerator(random_state=42)
+        data = generator.generate_logs(n_samples=1000, anomaly_ratio=0.1)
+        data_time = time.time() - start_time
+        
+        # Test detection performance
+        start_time = time.time()
+        detector = AnomalyDetector(method='isolation_forest', random_state=42)
+        predictions = detector.fit_predict(data)
+        detection_time = time.time() - start_time
+        
+        print(f'Data generation time: {data_time:.2f}s')
+        print(f'Detection time: {detection_time:.2f}s')
+        print(f'Total time: {data_time + detection_time:.2f}s')
+        
+        # Performance thresholds
+        assert data_time < 5.0, 'Data generation too slow'
+        assert detection_time < 10.0, 'Detection too slow'
+        assert data_time + detection_time < 15.0, 'Total pipeline too slow'
+        
+        print('Performance test passed')
+        "
+
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test, security-scan, demo-test]
+    if: always()
+    
+    steps:
+    - name: Notify on success
+      if: needs.test.result == 'success' && needs.security-scan.result == 'success'
+      run: |
+        echo "✅ All tests passed successfully!"
+        echo "🔒 Security scan completed without critical issues"
+        echo "📊 Demo application is working correctly"
+        
+    - name: Notify on failure
+      if: needs.test.result == 'failure' || needs.security-scan.result == 'failure'
+      run: |
+        echo "❌ Some tests failed or security issues detected"
+        echo "Please check the logs for details"
+        
+    - name: Create test summary
+      run: |
+        echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Lint and Format: ${{ needs.lint-and-format.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Unit Tests: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Demo Test: ${{ needs.demo-test.result }}" >> $GITHUB_STEP_SUMMARY
